@@ -27,7 +27,7 @@ class Worker(QThread):
     sig_warning = pyqtSignal(str)
     sig_statusbar = pyqtSignal(str, int)
 
-    sig_change_tau = pyqtSignal(int)
+    sig_change_tau = pyqtSignal(float)
     sig_flush = pyqtSignal(int)#, int, float)
     def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([])):
         super(Worker, self).__init__(parent)
@@ -334,7 +334,7 @@ class Worker(QThread):
 
             # tau tuning by acceptant rate
             if self.step_count % 10000 == 0:
-                self.ac_rate = acc / 10000
+                self.ac_rate = acc / 10000 * self.nblock
                 if self.auto_tau_flag:
                     if self.ac_rate < 0.2:
                         self.tau *= (1 + tau_step)

@@ -9,10 +9,10 @@ from matplotlib import colormaps
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
-from PyQt6.QtGui import QFont, QAction
+from PyQt6.QtGui import QFont, QAction, QDoubleValidator
 from PyQt6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QLabel, QLineEdit, QSizePolicy, \
     QPushButton, QHBoxLayout, QVBoxLayout, QDialog, QWidget, QCheckBox, QSpinBox, QGridLayout, QMenuBar, QMenu, \
-    QStatusBar, QDoubleSpinBox, QSpacerItem
+    QStatusBar, QDoubleSpinBox, QSpacerItem, QFrame, QComboBox
 from PyQt6.QtCore import QTimer, QRect, Qt
 import pyqtgraph as pg
 
@@ -59,43 +59,134 @@ class Intro(QDialog):
         super(Intro, self).__init__(parent)
         self.setWindowTitle('RMC input data file')
         self.setModal(True)
-        self.resize(600, 120)
+        self.resize(600, 600)
         self.selected_file = file
+        self.element = ''
+        self.ratiop = np.array([])
+        self.ratioa = np.array([])
 
         # Widget
-        self.label = QLabel("file：")
-        self.label.setFont(QFont("Arial", 10))
+        self.exp_label = QLabel('Experimental data analysis')
+        self.exp_label.setFont(QFont('Arial', 10))
+
+        self.file_label = QLabel('file：')
+        self.file_label.setFont(QFont('Arial', 10))
 
         self.file_edit = QLineEdit()
         self.file_edit.setPlaceholderText('Select/enter file' if file == '' else file)
         self.file_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        self.select_btn = QPushButton("...")
+        self.select_btn = QPushButton('...')
         self.select_btn.setFixedSize(30, 30)
         self.select_btn.clicked.connect(self.select_file)
 
-        self.run_btn = QPushButton("Run")
-        self.run_btn.setFont(QFont("Arial", 10, QFont.Weight.Bold))
-        self.run_btn.setFixedSize(80, 35)
-        self.run_btn.clicked.connect(self.on_run_click)  # 绑定Run事件
+        self.exp_btn = QPushButton('Run')
+        self.exp_btn.setObjectName('exp')
+        self.exp_btn.setFont(QFont('Arial', 10, QFont.Weight.Bold))
+        self.exp_btn.setFixedSize(80, 35)
+        self.exp_btn.clicked.connect(self.on_run_click)
+
+        self.model_label = QLabel('Simulated data analysis')
+        self.model_label.setFont(QFont("Arial", 10))
+
+        self.ele_label = QLabel('Element: ')
+        self.ele_label.setFont(QFont('Arial', 10))
+
+        self.ele_comboBox = QComboBox()
+        self.ele_comboBox.addItems(os.listdir(os.getcwd() + '\\ref'))
+        self.ele_comboBox.setCurrentText('Cu')
+        self.ele_comboBox.currentIndexChanged.connect(self.select_ele)
+
+        species = os.listdir(os.getcwd() + f'\\ref\\{self.ele_comboBox.currentText()}')
+        self.speciesLabel = np.zeros(len(species), dtype=QLabel)
+        for i in range(self.speciesLabel.size):
+            self.speciesLabel[i] = QLabel(species[i].split('.')[0])
+            self.speciesLabel[i].setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.speciesLabel[i].setFont(QFont('Arial', 10))
+
+        self.weight_label = QLabel('Weight')
+        self.weight_label.setFont(QFont('Arial', 10))
+        self.weight_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        self.weightLine = np.zeros(4, dtype=QLineEdit)
+        self.axisLine = np.zeros((4, self.speciesLabel.size), dtype=QLineEdit)
+        self.float_validator = QDoubleValidator(0.0, 10, 3)
+        self.float_validator.setNotation(QDoubleValidator.Notation.StandardNotation)
+        ratiop = np.array([0.7, 0.3, 0, 0])
+        ratioa = np.array([[1.8, 0.9, 0.0],
+                           [0.0, 0.3, 0.5],
+                           [0.0, 0.0, 0.0],
+                           [0.0, 0.0, 0.0]])
+        for i in range(self.weightLine.size):
+            self.weightLine[i] = QLineEdit()
+            self.weightLine[i].setAlignment(Qt.AlignmentFlag.AlignCenter)
+            self.weightLine[i].setValidator(self.float_validator)
+            self.weightLine[i].setText(f'{ratiop[i]:.3f}')
+            for j in range(self.speciesLabel.size):
+                self.axisLine[i][j] = QLineEdit()
+                self.axisLine[i][j].setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.axisLine[i][j].setValidator(self.float_validator)
+                self.axisLine[i][j].setText(f'{ratioa[i][j]:.3f}')
+
+        self.model_btn = QPushButton('Run')
+        self.model_btn.setObjectName('model')
+        self.model_btn.setFont(QFont('Arial', 10, QFont.Weight.Bold))
+        self.model_btn.setFixedSize(80, 35)
+        self.model_btn.clicked.connect(self.on_run_click)
 
         # Layout
-        top_layout = QHBoxLayout()
-        top_layout.addWidget(self.label)
-        top_layout.addWidget(self.file_edit)
-        top_layout.addWidget(self.select_btn)
-        top_layout.setSpacing(10)
-        top_layout.setContentsMargins(20, 20, 20, 10)
+        exp_file_layout = QHBoxLayout()
+        exp_file_layout.addWidget(self.file_label)
+        exp_file_layout.addWidget(self.file_edit)
+        exp_file_layout.addWidget(self.select_btn)
+        exp_file_layout.setSpacing(10)
+        exp_file_layout.setContentsMargins(20, 20, 20, 10)
 
-        bottom_layout = QHBoxLayout()
-        bottom_layout.addStretch()
-        bottom_layout.addWidget(self.run_btn)
-        bottom_layout.addStretch()
-        bottom_layout.setContentsMargins(20, 10, 20, 20)
+        exp_btn_layout = QHBoxLayout()
+        exp_btn_layout.addStretch()
+        exp_btn_layout.addWidget(self.exp_btn)
+        exp_btn_layout.addStretch()
+        exp_btn_layout.setContentsMargins(20, 10, 20, 20)
+
+        h_line = QFrame()
+        h_line.setFrameShape(QFrame.Shape.HLine)
+        h_line.setFrameShadow(QFrame.Shadow.Sunken)
+        h_line.setLineWidth(1)
+
+        ele_layout = QHBoxLayout()
+        ele_layout.addStretch()
+        ele_layout.addWidget(self.ele_label)
+        ele_layout.addWidget(self.ele_comboBox)
+        ele_layout.addStretch()
+        ele_layout.setContentsMargins(20, 20, 20, 10)
+
+        self.species_layout = QHBoxLayout()
+        self.species_layout.addWidget(self.weight_label)
+        for i in range(self.speciesLabel.size):
+            self.species_layout.addWidget(self.speciesLabel[i])
+
+        self.ratio_layout = QGridLayout()
+        for i in range(self.weightLine.size):
+            self.ratio_layout.addWidget(self.weightLine[i], i, 0, 1, 1)
+            for j in range(self.speciesLabel.size):
+                self.ratio_layout.addWidget(self.axisLine[i][j], i, j + 1, 1, 1)
+
+        model_btn_layout = QHBoxLayout()
+        model_btn_layout.addStretch()
+        model_btn_layout.addWidget(self.model_btn)
+        model_btn_layout.addStretch()
+        model_btn_layout.setContentsMargins(20, 10, 20, 20)
 
         main_layout = QVBoxLayout()
-        main_layout.addLayout(top_layout)
-        main_layout.addLayout(bottom_layout)
+        main_layout.addWidget(self.exp_label)
+        main_layout.addLayout(exp_file_layout)
+        main_layout.addLayout(exp_btn_layout)
+        main_layout.addWidget(h_line)
+        main_layout.addWidget(self.model_label)
+        main_layout.addLayout(ele_layout)
+        main_layout.addLayout(self.species_layout)
+        main_layout.addLayout(self.ratio_layout)
+        main_layout.addLayout(model_btn_layout)
         self.setLayout(main_layout)
 
     def select_file(self):
@@ -109,16 +200,61 @@ class Intro(QDialog):
             self.file_edit.setText(file_path)
             self.selected_file = file_path.strip()
 
+    def select_ele(self):
+        species = os.listdir(os.getcwd() + f'\\ref\\{self.ele_comboBox.currentText()}')
+        dif = len(species) - self.speciesLabel.size
+        if dif > 0:
+            for j in range(dif):
+                self.speciesLabel = np.append(self.speciesLabel, QLabel(''))
+                self.speciesLabel[-1].setAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.speciesLabel[-1].setFont(QFont('Arial', 10))
+                self.species_layout.addWidget(self.speciesLabel[-1])
+                ratioLine = np.array([QLineEdit('0.000') for _ in range(self.weightLine.size)])
+                self.axisLine = np.hstack((self.axisLine, ratioLine[:, None]))
+                for i in range(self.weightLine.size):
+                    self.axisLine[i][-1].setAlignment(Qt.AlignmentFlag.AlignCenter)
+                    self.axisLine[i][-1].setFont(QFont('Arial', 10))
+                    self.axisLine[i][-1].setValidator(self.float_validator)
+                    self.ratio_layout.addWidget(self.axisLine[i][-1], i, self.axisLine.shape[1], 1, 1)
+        elif dif < 0:
+            for j in range(-dif):
+                self.species_layout.removeWidget(self.speciesLabel[-1])
+                self.speciesLabel[-1].deleteLater()
+                self.speciesLabel = self.speciesLabel[:-1]
+                for i in range(self.weightLine.size):
+                    self.ratio_layout.removeWidget(self.axisLine[i][-1])
+                    self.axisLine[i][-1].deleteLater()
+                self.axisLine = self.axisLine[:, :-1]
+        for i in range(self.speciesLabel.size):
+            self.speciesLabel[i].setText(species[i].split('.')[0])
+
+
     def on_run_click(self):
-        if not self.selected_file == '':
-            if not self.file_edit.text() == '':
-                self.selected_file = self.file_edit.text().strip()
-            if os.path.exists(self.selected_file):
-                self.accept()
+        target = self.sender()
+        if target.objectName() == 'exp':
+            if not self.selected_file == '':
+                if not self.file_edit.text() == '':
+                    self.selected_file = self.file_edit.text().strip()
+                if os.path.exists(self.selected_file):
+                    self.accept()
+                else:
+                    QMessageBox.information(self, 'Error', 'Wrong file path', QMessageBox.StandardButton.Ok)
             else:
-                QMessageBox.information(self, 'Error', 'Wrong file path', QMessageBox.StandardButton.Ok)
+                self.file_edit.setPlaceholderText("Please select a file")
+        elif target.objectName() == 'model':
+            self.element = self.ele_comboBox.currentText()
+            ratiop = np.zeros(self.weightLine.size, dtype=float)
+            ratioa = np.zeros(self.axisLine.shape, dtype=float)
+            for i in range(self.weightLine.size):
+                ratiop[i] = float(self.weightLine[i].text())
+                for j in range(self.speciesLabel.size):
+                    ratioa[i][j] = float(self.axisLine[i][j].text())
+            self.ratioa = ratioa[ratiop > 10e-6]
+            ratiop = ratiop[ratiop > 10e-6]
+            self.ratiop = ratiop / np.sum(ratiop)
+            self.accept()
         else:
-            self.file_edit.setPlaceholderText("Please select a file")
+            pass
 
 
 class MainWindow(QMainWindow):
@@ -428,7 +564,7 @@ class MainWindow(QMainWindow):
         # GUI refreash timer
         self.refresh_timer = QTimer()
         self.refresh_timer.setSingleShot(True)
-        self.refresh_timer.setInterval(10)
+        self.refresh_timer.setInterval(20)
         self.refresh_timer.timeout.connect(self._plotting)
         self.timer_busy = False
 
@@ -673,7 +809,7 @@ class MainWindow(QMainWindow):
         self.tauFBox.blockSignals(False)
 
     def walk_param_change(self):
-        target = self.sender()
+        #target = self.sender()
         if self.walkRangeBox.value() < self.walkStepBox.value():
             self.walkStepBox.setValue(self.walkRangeBox.value())
         self.thread.mvRange = int(self.walkRangeBox.value() / self.walkStepBox.value())
@@ -707,7 +843,7 @@ class MainWindow(QMainWindow):
             if self.blocksLine.value() > 1:
                 self.thread.nblock = self.blocksLine.value()
                 self.stepSizeLine.setMaximum(self.thread.nblock)
-                self.thread.step_size = max(int(self.thread.nblock / 10), 1)
+                self.thread.step_size = max(int(self.thread.nblock / 10), 2)
                 self.stepSizeLine.setValue(self.thread.step_size)
                 if not self.thread.fname == '':
                     self.thread.init()
@@ -1153,29 +1289,22 @@ class MainWindow(QMainWindow):
 
         plt.show()
 
-
-
-
-
-
-
 if __name__ == '__main__':
-    def main():
-        pass
     app = QApplication(argv)
-    model_flag = False
-    if model_flag:
-        # ratiop = np.array([0.4, 0.4, 0.2])
-        # ratioa = np.array([[0.600, 0.000, 1.100, 0.000],
-        #                   [1.200, 0.000, 0.700, 1.800],
-        #                   [0.000, 0.000, 0.000, 0.000]])
-        ratiop = np.array([0.7, 0.3])
-        ratioa = np.array([[1.8, 0.9, 0.0],
-                           [0.0, 0.3, 0.5]])
-        print(ratiop @ ratioa)
-        main = MainWindow(file=os.getcwd() + '\\data\\model\\new', element='Cu', ratio_plane=ratiop, ratio_axis=ratioa)
-    else:
-        dialog = Intro(file=os.getcwd() + '\\data\\block.dat')
-        if dialog.exec() == QDialog.DialogCode.Accepted:
+    # ratiop = np.array([0.4, 0.4, 0.2])
+    # ratioa = np.array([[0.600, 0.000, 1.100, 0.000],
+    #                   [1.200, 0.000, 0.700, 1.800],
+    #                   [0.000, 0.000, 0.000, 0.000]])
+    # ratiop = np.array([0.7, 0.3])
+    # ratioa = np.array([[1.8, 0.9, 0.0],
+    #                    [0.0, 0.3, 0.5]])
+    dialog = Intro(file=os.getcwd() + '\\data\\block.dat')
+    if dialog.exec() == QDialog.DialogCode.Accepted:
+        if dialog.element == '':
             main = MainWindow(file=dialog.selected_file)
+        else:
+            print(dialog.ratiop.shape, dialog.ratioa.shape)
+            print(dialog.ratiop @ dialog.ratioa)
+            main = MainWindow(file=os.getcwd() + '\\data\\model\\new', element=dialog.element,
+                              ratio_plane=dialog.ratiop, ratio_axis=dialog.ratioa)
     exit(app.exec())

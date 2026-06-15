@@ -18,7 +18,9 @@ $$M_{cal}=log \frac{I_0}{∑_N I_1^k }=-log∑_N exp{[-∑_J{α_j^k μ_j }]}, k�
  
 ## features
 RMC-CF supports experimental spectrum data with 9809 format or simple (# energy-mu) format. 
+
 Default reference spectra of Cu/Fe/Co are placed on `ref` folder classificated by elements. 
+
 For more reference spectra of other elements, creating and placing them on the corresponding `element-named` folders in `ref` folder.
 Refernce spectra can be modified and added in the GUI.
 

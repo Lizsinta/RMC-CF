@@ -21,6 +21,7 @@ from scipy.spatial.distance import cdist
 from qtgraph import barPlotWidget
 from xafs import xanes_analysis, read_9809_xafs, read_dat
 from rmccf import Worker
+from icon import get_icon
 
 colors = list(mcolors.TABLEAU_COLORS.keys())
 
@@ -57,11 +58,13 @@ def bar(x=np.array([]), y=np.array([]), width=0.3, c=(0, 0, 0), alpha=1.0, name=
 class Intro(QDialog):
     def __init__(self, parent=None, file=''):
         super(Intro, self).__init__(parent)
-        self.setWindowTitle('RMC input data file')
+        self.setWindowTitle('RMC-CF input')
+        self.setWindowIcon(get_icon())
         self.setModal(True)
         self.resize(600, 600)
         self.selected_file = file
         self.element = ''
+        self.snr = 50
         self.ratiop = np.array([])
         self.ratioa = np.array([])
 
@@ -96,6 +99,16 @@ class Intro(QDialog):
         self.ele_comboBox.addItems(os.listdir(os.getcwd() + '\\ref'))
         self.ele_comboBox.setCurrentText('Cu')
         self.ele_comboBox.currentIndexChanged.connect(self.select_ele)
+
+        self.snr_label = QLabel('S/N: ')
+        self.snr_label.setFont(QFont("Arial", 10))
+
+        self.snr_spinBox = QSpinBox()
+        self.snr_spinBox.setMinimum(30)
+        self.snr_spinBox.setMaximum(100)
+        self.snr_spinBox.setSingleStep(10)
+        self.snr_spinBox.setValue(50)
+        self.snr_spinBox.setFont(QFont("Arial", 10))
 
         species = os.listdir(os.getcwd() + f'\\ref\\{self.ele_comboBox.currentText()}')
         self.speciesLabel = np.zeros(len(species), dtype=QLabel)
@@ -158,6 +171,8 @@ class Intro(QDialog):
         ele_layout.addWidget(self.ele_label)
         ele_layout.addWidget(self.ele_comboBox)
         ele_layout.addStretch()
+        ele_layout.addWidget(self.snr_label)
+        ele_layout.addWidget(self.snr_spinBox)
         ele_layout.setContentsMargins(20, 20, 20, 10)
 
         self.species_layout = QHBoxLayout()
@@ -243,6 +258,7 @@ class Intro(QDialog):
                 self.file_edit.setPlaceholderText("Please select a file")
         elif target.objectName() == 'model':
             self.element = self.ele_comboBox.currentText()
+            self.snr = self.snr_spinBox.value()
             ratiop = np.zeros(self.weightLine.size, dtype=float)
             ratioa = np.zeros(self.axisLine.shape, dtype=float)
             for i in range(self.weightLine.size):
@@ -258,9 +274,11 @@ class Intro(QDialog):
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, file, element='', ratio_axis=np.array([]), ratio_plane=np.array([])):
+    def __init__(self, file, element='', ratio_axis=np.array([]), ratio_plane=np.array([]), snr=50):
         super(MainWindow, self).__init__()
         self.setObjectName("RMC")
+        self.setWindowTitle("RMC-CF")
+        self.setWindowIcon(get_icon())
         self.resize(1280, 720)
         # font = QFont()
         # font.setFamily("Adobe Arabic")
@@ -306,7 +324,7 @@ class MainWindow(QMainWindow):
         for i in range(self.line.size):
             self.plot.addItem(self.line[i])
 
-        self.thread = Worker(file=file, element=element, ratio_axis=ratio_axis, ratio_plane=ratio_plane)
+        self.thread = Worker(file=file, element=element, ratio_axis=ratio_axis, ratio_plane=ratio_plane, snr=snr)
         self.model_flag = True if not element == '' else False
         self.reload_flag = self.read()
 
@@ -1298,13 +1316,14 @@ if __name__ == '__main__':
     # ratiop = np.array([0.7, 0.3])
     # ratioa = np.array([[1.8, 0.9, 0.0],
     #                    [0.0, 0.3, 0.5]])
+    if not os.path.exists(os.getcwd() + '\\data'):
+        os.mkdir(os.getcwd() + '\\data')
     dialog = Intro(file=os.getcwd() + '\\data\\block.dat')
     if dialog.exec() == QDialog.DialogCode.Accepted:
         if dialog.element == '':
             main = MainWindow(file=dialog.selected_file)
         else:
-            print(dialog.ratiop.shape, dialog.ratioa.shape)
-            print(dialog.ratiop @ dialog.ratioa)
+            print(dialog.ratiop @ dialog.ratioa, dialog.snr)
             main = MainWindow(file=os.getcwd() + '\\data\\model\\new', element=dialog.element,
-                              ratio_plane=dialog.ratiop, ratio_axis=dialog.ratioa)
+                              ratio_plane=dialog.ratiop, ratio_axis=dialog.ratioa, snr=dialog.snr)
     exit(app.exec())

@@ -29,7 +29,7 @@ class Worker(QThread):
 
     sig_change_tau = pyqtSignal(float)
     sig_flush = pyqtSignal(int)#, int, float)
-    def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([])):
+    def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([]), snr=50):
         super(Worker, self).__init__(parent)
         self.folder = os.path.dirname(file)
         self.folder_save = self.folder + (r'\RMC' if element == '' else '')
@@ -72,7 +72,7 @@ class Worker(QThread):
             self.ratio_gauss = np.array([])
             self.ratio_axis = np.array([])
             self.ratio_plane = np.array([])
-        self.noise = 50
+        self.noise = snr
 
         # fitting relate
         self.nblock = 100

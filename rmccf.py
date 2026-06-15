@@ -29,7 +29,7 @@ class Worker(QThread):
 
     sig_change_tau = pyqtSignal(float)
     sig_flush = pyqtSignal(int)#, int, float)
-    def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([])):
+    def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([]), snr=50):
         super(Worker, self).__init__(parent)
         self.folder = os.path.dirname(file)
         self.folder_save = self.folder + (r'\RMC' if element == '' else '')
@@ -72,7 +72,7 @@ class Worker(QThread):
             self.ratio_gauss = np.array([])
             self.ratio_axis = np.array([])
             self.ratio_plane = np.array([])
-        self.noise = 50
+        self.noise = snr
 
         # fitting relate
         self.nblock = 100
@@ -112,8 +112,9 @@ class Worker(QThread):
         self.energy, mu = np.array(e), np.array(mu)
         e_diff = np.diff(self.energy, prepend=self.energy[-1:])
         ref_i = np.argmax(np.diff(mu, prepend=mu[-1]) / e_diff)
-        table_e0 = np.loadtxt(os.getcwd() + r'\energy table.dat', usecols=2, dtype=float)
-        table_ele = np.loadtxt(os.getcwd() + r'\energy table.dat', usecols=1, dtype=str)
+        f_table = os.getcwd() + '\\data\\energy table.dat'
+        table_e0 = np.loadtxt(f_table, usecols=2, dtype=float)
+        table_ele = np.loadtxt(f_table, usecols=1, dtype=str)
         self.element = table_ele[np.argmin(np.abs(table_e0 - self.energy[ref_i]))]
         self.eref = table_e0[np.argmin(np.abs(table_e0 - self.energy[ref_i]))]
         self.e0_ref_i = np.argmin(np.abs(self.energy - self.eref))
@@ -146,8 +147,9 @@ class Worker(QThread):
         return True
 
     def read_ref(self):
-        table_e0 = np.loadtxt(os.getcwd() + r'\energy table.dat', usecols=2, dtype=float)
-        table_ele = np.loadtxt(os.getcwd() + r'\energy table.dat', usecols=1, dtype=str)
+        f_table = os.getcwd() + '\\data\\energy table.dat'
+        table_e0 = np.loadtxt(f_table, usecols=2, dtype=float)
+        table_ele = np.loadtxt(f_table, usecols=1, dtype=str)
         self.eref = table_e0[np.where(table_ele == self.element)[0][0]]
 
         ref_folder = os.getcwd() + f'\\ref\\{self.element}'

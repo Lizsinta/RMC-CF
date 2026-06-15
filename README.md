@@ -22,10 +22,9 @@ RMC-CF supports experimental spectrum data with 9809 format or simple (# energy-
 Default reference spectra of Cu/Fe/Co are placed on `ref` folder classificated by elements. 
 
 For more reference spectra of other elements, creating and placing them on the corresponding `element-named` folders in `ref` folder.
-Refernce spectra can be modified and added in the GUI.
+Any other reference spectrum files can be modified and added in the main GUI.
 
 Support the analysis of simultated spectrum calcuated from reference spectrum according to customized heterogeneous model structure.
-
 
 ## Installation
 

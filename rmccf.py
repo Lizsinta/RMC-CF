@@ -99,6 +99,9 @@ class Worker(QThread):
         self.start_stamp = time()
         self.accum_time = 0.0
 
+        # weight mode related
+        self.weight = np.zeros(self.nblock)
+        self.weight_flag = False
 
     def read(self):
         # read target and reference spectrum
@@ -197,11 +200,15 @@ class Worker(QThread):
         if ratio_reset:
             self.ratio = np.random.rand(self.nblock, self.std.size).clip(1e-6, 1)  / self.std.size
         #self.ratio[:, 1] += 0.6
-        self.i1_group = np.exp(-(self.ratio @ self.ref)).clip(self.i1_limit, 1)  # calculated ut group
-        self.fit = self.i1_group.mean(0)# calculate i1 and sum
-
         self.exper = self.exper0[self.edge]
         self.exper_bottom = np.sum(self.exper ** 2)
+
+        if self.weight_flag:
+            self.weight, self.fit = self.lnsolve(self.ratio, np.ascontiguousarray(self.exper.T))
+        else:
+            self.i1_group = np.exp(-(self.ratio @ self.ref)).clip(self.i1_limit, 1)  # calculated ut group
+            self.fit = self.i1_group.mean(0)# calculate i1 and sum
+
         self.r_factor = np.sum((self.fit - self.exper) ** 2) / self.exper_bottom
         self.r_factor_best = self.r_factor
         self.ratio_best = self.ratio.copy()
@@ -236,7 +243,6 @@ class Worker(QThread):
         fitting = np.loadtxt(self.folder_save + '/' + self.fname + f'_fitting{self.suffix}.dat', dtype=float).T
         self.energy = fitting[0]
 
-
         self.species = dat[np.char.find(head, 'std')>=0][0].split('-')
         self.std = np.arange(len(self.species))
 
@@ -250,8 +256,17 @@ class Worker(QThread):
             walk = dat[np.char.find(head, 'walk') >= 0][0].split()
             self.mvRange = int(float(walk[0])/float(walk[1]))
             self.mvReso = int(1/float(walk[1]))
+        if (np.char.find(head, 'weight') >= 0).any():
+            self.weight_flag = True if int(dat[np.char.find(head, 'weight') >= 0][0]) > 0 else False
+        else:
+            self.weight_flag = False
         self.edge = np.where((self.energy > self.emin) & (self.energy < self.emax))[0]
-        self.ratio = np.loadtxt(file, dtype=float)
+        ratio = np.loadtxt(file, dtype=float)
+        if self.weight_flag:
+            self.weight = ratio[:, 0]
+            self.ratio = ratio[:, 1:]
+        else:
+            self.ratio = ratio
         self.nblock = self.ratio.shape[0]
 
         self.exper0 = np.exp(-fitting[1])
@@ -264,13 +279,24 @@ class Worker(QThread):
         lcf = nnls(self.ref.T, -np.log(self.exper))[0]
         i1_lcf = np.exp(-lcf @ self.ref)
         rf_lcf = np.sum((i1_lcf - self.exper) ** 2) / np.sum(i1_lcf ** 2)
-        i1_rmc = np.exp(-(self.ratio @ self.ref[self.std])).clip(self.i1_limit, 1).mean(0)
+        if self.weight_flag:
+            self.weight, i1_rmc = self.lnsolve(self.ratio, np.ascontiguousarray(self.exper.T))
+        else:
+            i1_rmc = np.exp(-(self.ratio @ self.ref[self.std])).clip(self.i1_limit, 1).mean(0)
 
         print('lcf', lcf)
         print('rf lcf', rf_lcf)
         print('rmc', self.ratio.mean(0))
         print('rf rmc', np.sum((i1_rmc - self.exper) ** 2) / self.exper_bottom)
 
+    def lnsolve(self, x, y):
+        i1fit = np.exp(-(x @ self.ref))
+        u, s, vt = np.linalg.svd(i1fit.T, full_matrices=False)
+        s_inv = np.diag(1 / s.clip(1e-6, None))
+        a_pinv = vt.T @ s_inv @ u.T
+        eigen = (a_pinv @ y).T.clip(1e-6, None)
+        eigen[eigen > 0] /= eigen.sum()
+        return eigen, (eigen @ i1fit).clip(self.i1_limit, 1)
 
     def save(self):
         if not os.path.exists(self.folder_save):
@@ -288,14 +314,26 @@ class Worker(QThread):
         walk_info = f'walk param (range, step): {self.mvRange / self.mvReso:.3f} {1 / self.mvReso:.3f}\n'
         rf_info = f'best r2: {self.r_factor_best:.8e}\n'
         tau_info = f'tau: {self.tau:.1e}\n'
-
-        np.savetxt(fname + r'_ratio.dat', self.ratio,
-                   fmt='%.3f', header=f'{edge_info}{nblock_info}{time_info}'
-                                      f'{count_info}{step_info}{walk_info}{rf_info}{tau_info}{used_std}')
+        weight_info = f'weight: {int(self.weight_flag)}\n'
+        ratio_info = 'weight ' if self.weight_flag else ''
+        for i in self.std:
+            ratio_info += '%s ' % self.species[i]
+        ratio_info = ratio_info[:-1]
+        if self.weight_flag:
+            _ratio = np.hstack((self.weight[:, None], self.ratio))
+        else:
+            _ratio = self.ratio
+        np.savetxt(fname + r'_ratio.dat', _ratio,
+                   fmt='%.3f', header=f'{edge_info}{nblock_info}{time_info}{count_info}'
+                                      f'{step_info}{walk_info}{rf_info}{tau_info}{weight_info}{used_std}{ratio_info}')
         # np.save(fname + r'_rfactor%s' % self.thread.suffix, np.asarray(self.thread.r_factor_seq))
         # np.save(fname + r'_tau%s' % self.thread.suffix, np.asarray(self.thread.tau_seq))
 
-        fit = -np.log(np.exp(-(self.ratio @ self.ref0[self.std])).clip(self.i1_limit, 1).mean(0))
+        if self.weight_flag:
+            i1 = self.weight @ np.exp(-(self.ratio @ self.ref0[self.std]))
+        else:
+            i1 = np.exp(-(self.ratio @ self.ref0[self.std])).mean(0)
+        fit = -np.log(i1.clip(self.i1_limit, 1))
         wdata = np.vstack((self.energy, -np.log(self.exper0), fit))
         for i in self.std:
             wdata = np.vstack((wdata, self.ref0[i]))
@@ -311,6 +349,7 @@ class Worker(QThread):
         accum_time = 0.0
         acc = 0
         tau_step = 0.1
+        i1_in_t = np.ascontiguousarray(self.exper.T)
         while True:
             self.step_count += 1
             '''if self.step_count == 100000:
@@ -348,16 +387,20 @@ class Worker(QThread):
 
             # randomly select self.step_size groups, randomly change [self.step_size, self.std_i.size] ratio
             target = np.random.permutation(self.nblock)[:self.step_size]
-            ratio_temp = self.ratio[target].copy()
+            ratio_temp = self.ratio.copy()
             # moving = (1 + (2*np.random.randint(0, 2, (target.size, self.std_i.size))-1)/10)
             # ratio_temp *= moving
             moving = np.random.randint(-self.mvRange, self.mvRange + 1, (target.size, self.std.size)) / self.mvReso
-            ratio_temp = (ratio_temp + moving).clip(1e-6, None)  # cut from 0 after change
+            ratio_temp[target] = (ratio_temp[target] + moving).clip(1e-6, None)  # cut from 0 after change
             ratio_temp[ratio_temp > 10] = 1e-6
 
             # recalculate the changed group->new R2
-            self.i1_group[target] = np.exp(-(ratio_temp @ self.ref)).clip(self.i1_limit, 1)
-            fit = self.i1_group.mean(0)
+            if self.weight_flag:
+                weight, fit = self.lnsolve(ratio_temp, i1_in_t)
+            else:
+                self.i1_group[target] = np.exp(-(ratio_temp[target] @ self.ref)).clip(self.i1_limit, 1)
+                fit = self.i1_group.mean(0)
+
             r_factor_new = np.sum((fit - self.exper) ** 2) / self.exper_bottom
 
             # compared new R2 with old R2
@@ -371,7 +414,9 @@ class Worker(QThread):
                 acc += 1
                 self.r_factor = r_factor_new
                 # self.r_factor_seq.append(r_factor_new)
-                self.ratio[target] = ratio_temp.copy()
+                self.ratio = ratio_temp.copy()
+                if self.weight_flag:
+                    self.weight = weight.copy()
                 if self.r_factor < self.r_factor_best:
                     # when new R2 is the lowest R2
                     self.ratio_best = self.ratio.copy()
@@ -381,7 +426,8 @@ class Worker(QThread):
                 self.plot_flag = True
             else:
                 # if reject, recover the selected group
-                self.i1_group[target] = np.exp(-(self.ratio[target] @ self.ref)).clip(self.i1_limit, 1)
+                if not self.weight_flag:
+                    self.i1_group[target] = np.exp(-(self.ratio[target] @ self.ref)).clip(self.i1_limit, 1)
             self.sig_flush.emit(0)
             if not self.flag:
                 break

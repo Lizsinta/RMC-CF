@@ -412,8 +412,8 @@ class MainWindow(QMainWindow):
         self.paramInfoLayout.addWidget(self.blocksLabel, 1, 0, 1, 1)
         self.blocksLine = QSpinBox(parent=self.paramInfoWidget)
         self.blocksLine.setMinimum(1)
-        self.blocksLine.setMaximum(100000)
-        self.blocksLine.setProperty("value", 1000)
+        self.blocksLine.setMaximum(1000)
+        self.blocksLine.setProperty("value", 100)
         self.blocksLine.setObjectName("blocksLine")
         self.paramInfoLayout.addWidget(self.blocksLine, 1, 1, 1, 1)
 
@@ -423,8 +423,8 @@ class MainWindow(QMainWindow):
         self.stepSizeLine = QSpinBox(parent=self.paramInfoWidget)
         self.stepSizeLine.setMinimum(1)
         self.stepSizeLine.setMaximum(1000)
-        self.stepSizeLine.setProperty("value", 100)
-        self.stepSizeLine.setDisplayIntegerBase(10)
+        self.stepSizeLine.setProperty("value", 10)
+        self.stepSizeLine.setDisplayIntegerBase(1)
         self.stepSizeLine.setObjectName("stepSizeLine")
         self.paramInfoLayout.addWidget(self.stepSizeLine, 2, 1, 1, 1)
 
@@ -513,6 +513,11 @@ class MainWindow(QMainWindow):
         self.emaxLine.setObjectName("emaxLine")
         self.erangeLayout.addWidget(self.emaxLine)
 
+        self.weightCheckBox = QCheckBox(parent=self.erangeWidget, text="Weight mode")
+        self.weightCheckBox.setObjectName("weightCheckBox")
+        self.weightCheckBox.setChecked(False)
+        self.erangeLayout.addWidget(self.weightCheckBox)
+
         # Button initialization
         self.buttonWidget = QWidget(parent=self.cw)
         self.buttonLayout = QHBoxLayout(self.buttonWidget)
@@ -578,6 +583,7 @@ class MainWindow(QMainWindow):
         self.stdPlusBtn.clicked.connect(self.ref_line_add)
         self.eminLine.editingFinished.connect(self.energy_select_event)
         self.emaxLine.editingFinished.connect(self.energy_select_event)
+        self.weightCheckBox.clicked.connect(self.mode_switch)
 
         # GUI refreash timer
         self.refresh_timer = QTimer()
@@ -675,6 +681,8 @@ class MainWindow(QMainWindow):
                 self.ref_num_change()
             self.thread.init(ratio_reset=False)
             self.blocksLine.setReadOnly(True)
+            self.weightCheckBox.setChecked(self.thread.weight_flag)
+            self.weightCheckBox.setEnabled(False)
 
             for i in self.thread.std:
                 self.stdLabel[i].setChecked(True)
@@ -689,6 +697,8 @@ class MainWindow(QMainWindow):
     def reload(self):
         self.blocksLine.setValue(self.thread.nblock)
         self.blocksLine.setReadOnly(True)
+        self.weightCheckBox.setChecked(self.thread.weight_flag)
+        self.weightCheckBox.setEnabled(False)
         self.stepSizeLine.setValue(self.thread.step_size)
         self.tau_change_a(self.thread.tau)
         self.countLine.setText(f'{self.thread.step_count:d}')
@@ -721,6 +731,7 @@ class MainWindow(QMainWindow):
             self.stdLabel[i].setEnabled(False)
             self.stdAddrBtn[i].setEnabled(False)
         self.stdPlusBtn.setEnabled(False)
+        self.weightCheckBox.setEnabled(False)
         #self.readAction.setEnabled(False)
         #self.reloadAction.setEnabled(False)
         self.endButton.setEnabled(True)
@@ -766,20 +777,26 @@ class MainWindow(QMainWindow):
                 print(self.thread.edge.size, _fit.size)
             if not xsize == _fit.size:
                 self.plot.setXRange(self.thread.emin, self.thread.emax, padding=0.1)
+            if self.thread.weight_flag:
+                _ratio = self.thread.weight[:, None] * self.thread.ratio
+                composition = self.thread.weight @ self.thread.ratio
+            else:
+                _ratio = self.thread.ratio
+                composition = self.thread.ratio.mean(0)
             for i in range(self.thread.std.size):
-                _ratio = self.thread.ratio[:, i]
-                rdf = np.unique(np.round(_ratio, 1), return_counts=True)
+                content = _ratio[:, i]
+                rdf = np.unique(np.round(content, 1), return_counts=True)
                 if rdf[0].size == 1 or (rdf[0].max() - rdf[0][rdf[0] > 0].min()) < 0.5:
                     digit = 2
                 else:
                     digit = 1
-                rdf = np.unique(np.round(_ratio, digit), return_counts=True)
+                rdf = np.unique(np.round(content, digit), return_counts=True)
                 self.stdBarPlot[self.thread.std[i]].setOpts(x=rdf[0], height=rdf[1], width=0.5 / 10 ** digit)
                 if self.stdBarWidget[self.thread.std[i]].autoBtn_flag:
                     min = rdf[0][rdf[0] > 0].min() if rdf[0].size > 1 else 0
                     self.stdBarWidget[self.thread.std[i]].setXRange(min, rdf[0].max(), padding=0.1)
-                ster = _ratio[_ratio > 1e-6].std() if (_ratio > 1e-6).any() else 0
-                self.stdLine[self.thread.std[i]].setText(f'{_ratio.mean():.3f}-{ster:.3f}')
+                std = content[content > 1e-6].std() if (content > 1e-6).any() else 0
+                self.stdLine[self.thread.std[i]].setText(f'{composition[i]:.3f}-{std:.3f}')
             self.thread.plot_flag = False
         self.timer_busy = False
 
@@ -1069,6 +1086,26 @@ class MainWindow(QMainWindow):
                 self.thread.edge = ei
                 self.thread.init(ratio_reset=False)
 
+    def mode_switch(self):
+        self.startButton.setEnabled(False)
+        self.thread.weight_flag = self.weightCheckBox.isChecked()
+        if self.weightCheckBox.isChecked():
+            if self.blocksLine.value() > 50:
+                self.blocksLine.setValue(6)
+                self.thread.nblock = 6
+                self.thread.init(ratio_reset=True)
+            self.blocksLine.setMaximum(50)
+
+            self.thread.step_size = self.thread.nblock
+            self.stepSizeLine.setMaximum(self.thread.nblock)
+            self.stepSizeLine.setValue(self.thread.step_size)
+        else:
+            self.blocksLine.setMaximum(1000)
+            self.stepSizeLine.setMaximum(self.thread.nblock)
+            self.thread.step_size = max(int(self.thread.nblock/10), 2)
+            self.stepSizeLine.setValue(self.thread.step_size)
+        self.startButton.setEnabled(True)
+
     def warning_window(self, massage):
         QMessageBox.critical(self, 'Error', massage)
 
@@ -1106,32 +1143,36 @@ class MainWindow(QMainWindow):
         # rn_u, rn_i, rn_c = np.unique(np.round(self.thread.ratio * 10, 0) / 10, axis=0, return_inverse=True,
         #                              return_counts=True)
         # selected = np.argsort(rn_c[rn_i])
-        _ratio = np.where(self.thread.ratio <= 1e-2, 0, self.thread.ratio)
-        nonzero = ~((_ratio == 0).all(0))
-        _ratio = _ratio[:, nonzero][:, :4]
+        if self.thread.weight_flag:
+            _ratio = self.thread.weight[:, None] * self.thread.ratio
+        else:
+            _ratio = self.thread.ratio
+        _ratio_clip = np.where(_ratio <= 1e-2, 0, _ratio)
+        nonzero = ~((_ratio_clip == 0).all(0))
+        _ratio_clip = _ratio_clip[:, nonzero][:, :4]
         # densities = rn_c[rn_i[selected]]
-        dist = cdist(self.thread.ratio, self.thread.ratio)
+        dist = cdist(_ratio, _ratio)
         densities = np.sum(dist < 0.1, axis=1)
         fig = plt.figure(figsize=(10, 9))
-        if _ratio.shape[1] == 2:
+        if _ratio_clip.shape[1] == 2:
             ax = fig.add_subplot()
-            x = _ratio[:, 0]
-            y = _ratio[:, 1]
+            x = _ratio_clip[:, 0]
+            y = _ratio_clip[:, 1]
             sc = ax.scatter(x, y, c=densities, s=100, cmap='plasma')
             ax.set_xlabel('%s' % self.thread.species[self.thread.std[nonzero][0]], fontsize=12)
             ax.set_ylabel('%s' % self.thread.species[self.thread.std[nonzero][1]], fontsize=12)
-        elif _ratio.shape[1] >= 3:
+        elif _ratio_clip.shape[1] >= 3:
             # alpha = ((densities - densities.min())/(densities.max() - densities.min())).clip(0.3, 1)
             # s = ((densities - densities.min()) / (densities.max() - densities.min()))*100+50
             ax = fig.add_axes([0.05, 0.15, 0.75, 0.75], projection='3d', computed_zorder=False)
-            x = _ratio[:, 0]
-            y = _ratio[:, 1]
-            z = _ratio[:, 2]
-            if _ratio.shape[1] >= 4:
+            x = _ratio_clip[:, 0]
+            y = _ratio_clip[:, 1]
+            z = _ratio_clip[:, 2]
+            if _ratio_clip.shape[1] >= 4:
                 cmap_edge = colormaps['inferno']
                 norm_edge = Normalize(vmin=densities.min(), vmax=densities.max())
                 edge_colors = cmap_edge(norm_edge(densities))
-                w = _ratio[:, 3]
+                w = _ratio_clip[:, 3]
                 cmap_core = colormaps['viridis']
                 norm_core = Normalize(vmin=w.min(), vmax=w.max())
                 core_colors = cmap_core(norm_core(w))
@@ -1163,7 +1204,7 @@ class MainWindow(QMainWindow):
             ax.set_ylabel('%s' % self.thread.species[self.thread.std[nonzero][1]], fontsize=12)
             ax.set_zlabel('%s' % self.thread.species[self.thread.std[nonzero][2]], fontsize=12)
 
-        if _ratio.shape[1] >= 4:
+        if _ratio_clip.shape[1] >= 4:
             cax1 = fig.add_axes([0.82, 0.25, 0.022, 0.5])
             cax2 = fig.add_axes([0.22, 0.08, 0.55, 0.022])
             cbar = fig.colorbar(cm.ScalarMappable(norm=norm_core, cmap=cmap_core), cax=cax1, pad=0.1)
@@ -1172,7 +1213,7 @@ class MainWindow(QMainWindow):
             cbar2.set_label('Density[edgecolor]', fontsize=12, labelpad=10)
         else:
             cbar = plt.colorbar(sc)
-        cbar.set_label('Density' if _ratio.shape[1] < 4 else f'{self.thread.species[self.thread.std[nonzero][3]]}',
+        cbar.set_label('Density' if _ratio_clip.shape[1] < 4 else f'{self.thread.species[self.thread.std[nonzero][3]]}',
                        fontsize=12, labelpad=10)
         plt.show()
 

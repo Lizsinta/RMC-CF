@@ -13,7 +13,11 @@ In RMC-CF, a model contains $N$ blocks and individual compositions of components
 
 The spectrum is calculated from model via the following equation:
 
-$$M_{cal}=log \frac{I_0}{∑_N I_1^k }=-log∑_N exp{[-∑_J{α_j^k μ_j }]}, k∈N, j∈J$$
+$$M_{cal}=log \frac{I_0}{∑_N \omega_n I_1^n }=-log∑_N \omega_n exp{[-∑_J{α_j^n μ_j }]}, k∈N, j∈J$$
+
+In **nornal** mode, weights $\omega_n$ are fixed at 1.
+
+In **weighted** model, $\omega_n$ are fitted automatically by least squares during RMC process.
 
  
 ## features

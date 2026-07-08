@@ -9,15 +9,11 @@ As a supplimentally method of Linear Combination Fitting (LCF),
 
 RMC-CF can be applied on XAFS spectrum of heterogeneous sample, which are regarded as being distorted and cannot be handled by LCF.
 
-In RMC-CF, a model contains $N$ blocks and individual compositions of components $J$, which has $J×N$ paramters in total, is adopted for simulation.
+A model $α_j^n$ contains $N$ blocks and individual compositions of components $J$, is refined by RMC-CF.
 
 The spectrum is calculated from model via the following equation:
 
-$$M_{cal}=log \frac{I_0}{∑_N \omega_n I_1^n }=-log∑_N \omega_n exp{[-∑_J{α_j^n μ_j }]}, n∈N, j∈J$$
-
-In **nornal** mode, weights $\omega_n$ are fixed at 1.
-
-In **weighted** model, $\omega_n$ are fitted automatically by least squares during RMC process.
+$$M_{cal}=\text{log} \frac{N I_0}{∑_N I_1^n }=\text{log}N-\text{log}∑_N exp{[-∑_J{α_j^n μ_j }]}, n∈N, j∈J$$
 
  
 ## features
@@ -34,8 +30,8 @@ Support the analysis of simultated spectrum calcuated from reference spectrum ac
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/Lizsinta/wRMC-CF.git
-cd wRMC-CF
+git clone https://github.com/Lizsinta/RMC-CF.git
+cd RMC-CF
 ```
 ### 2. Create and activate virtual environment
 Windows
@@ -55,7 +51,7 @@ pip install -r requirements.txt
 ```
 ### Run the program
 ```bash
-python rmccf.py
+python main.py
 ```
 
 ## For Windows Users

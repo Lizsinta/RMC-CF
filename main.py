@@ -9,19 +9,18 @@ from matplotlib import colormaps
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
-from PyQt6.QtGui import QFont, QAction, QDoubleValidator
+from PyQt6.QtGui import QFont, QDoubleValidator
 from PyQt6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QLabel, QLineEdit, QSizePolicy, \
-    QPushButton, QHBoxLayout, QVBoxLayout, QDialog, QWidget, QCheckBox, QSpinBox, QGridLayout, QMenuBar, QMenu, \
-    QStatusBar, QDoubleSpinBox, QSpacerItem, QFrame, QComboBox
-from PyQt6.QtCore import QTimer, QRect, Qt
+    QPushButton, QHBoxLayout, QVBoxLayout, QDialog, QWidget, QCheckBox, QSpinBox, QGridLayout, QMenuBar, QStatusBar, QDoubleSpinBox, QSpacerItem, QFrame, QComboBox
+from PyQt6.QtCore import QTimer, Qt
 import pyqtgraph as pg
 
 from scipy.spatial.distance import cdist
 
-from qtgraph import barPlotWidget
-from xafs import xanes_analysis, read_9809_xafs, read_dat
-from rmccf import Worker
-from icon import get_icon
+from lib.qtgraph import barPlotWidget
+from lib.xafs import xanes_analysis, read_9809_xafs, read_dat
+from lib.rmccf import Worker
+from lib.icon import get_icon
 
 colors = list(mcolors.TABLEAU_COLORS.keys())
 

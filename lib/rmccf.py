@@ -8,7 +8,7 @@ from time import time
 from scipy.optimize import nnls
 from random import randrange
 
-from xafs import xanes_analysis, read_9809_xafs, read_dat, add_gaussian_noise
+from lib.xafs import xanes_analysis, read_9809_xafs, read_dat, add_gaussian_noise
 
 def metropolis(r_0, r, tau=0.0):
     if r_0 > r:

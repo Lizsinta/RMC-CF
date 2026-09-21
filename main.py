@@ -9,10 +9,10 @@ from matplotlib import colormaps
 from matplotlib import cm
 from matplotlib.colors import Normalize
 
-from PyQt6.QtGui import QFont, QDoubleValidator
-from PyQt6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QLabel, QLineEdit, QSizePolicy, \
+from PySide6.QtGui import QFont, QDoubleValidator
+from PySide6.QtWidgets import QMainWindow, QApplication, QFileDialog, QMessageBox, QLabel, QLineEdit, QSizePolicy, \
     QPushButton, QHBoxLayout, QVBoxLayout, QDialog, QWidget, QCheckBox, QSpinBox, QGridLayout, QMenuBar, QStatusBar, QDoubleSpinBox, QSpacerItem, QFrame, QComboBox
-from PyQt6.QtCore import QTimer, Qt
+from PySide6.QtCore import QTimer, Qt
 import pyqtgraph as pg
 
 from scipy.spatial.distance import cdist
@@ -1306,7 +1306,7 @@ class MainWindow(QMainWindow):
                 plt.colorbar(ax)  # , orientation='horizontal')
                 plt.xlabel('%s$_{norm}$' % self.thread.species[self.thread.std[ratio_contour_index[0]]])
                 plt.ylabel('%s$_{norm}$' % self.thread.species[self.thread.std[ratio_contour_index[1]]])
-
+        plt.rcParams['savefig.dpi'] = 1000
         plt.show()
 
 if __name__ == '__main__':

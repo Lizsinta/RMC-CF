@@ -1,7 +1,7 @@
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
-from PyQt6.QtCore import QRect
-from PyQt6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout
+
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QHBoxLayout
 from pyqtgraph.Qt import QtCore
 import numpy as np
 from math import sqrt, acos, pi

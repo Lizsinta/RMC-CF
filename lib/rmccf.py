@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from PyQt6.QtCore import QThread, pyqtSignal
+from PySide6.QtCore import QThread, Signal
 from math import exp as mexp
 from time import perf_counter as timer, strftime, localtime
 from time import time
@@ -24,11 +24,11 @@ def metropolis(r_0, r, tau=0.0):
             return False
 
 class Worker(QThread):
-    sig_warning = pyqtSignal(str)
-    sig_statusbar = pyqtSignal(str, int)
+    sig_warning = Signal(str)
+    sig_statusbar = Signal(str, int)
 
-    sig_change_tau = pyqtSignal(float)
-    sig_flush = pyqtSignal(int)#, int, float)
+    sig_change_tau = Signal(float)
+    sig_flush = Signal(int)#, int, float)
     def __init__(self, parent=None, file='', element='', ratio_axis=np.array([]), ratio_plane=np.array([]), snr=50):
         super(Worker, self).__init__(parent)
         self.folder = os.path.dirname(file)

@@ -60,3 +60,13 @@ You can directly download the compiled program from **Releases**:
 2. Download `RMC-CF.exe` and `RMC-CF data.zip`
 3. Extract `RMC-CF data.zip`, place the `data` and `ref` folder in the **same directory** as the executable file
 4. Double-click `RMC-CF.exe` to run the program
+
+## License
+
+The source code created by the authors of this paper is licensed under the **MIT License**.
+See the [LICENSE](./LICENSE) file for full license text.
+
+This project uses **PySide6**, which is distributed under the **LGPLv2.1 License**.
+We have NOT modified the source code of PySide6.
+Users may replace PySide6 with another compatible Qt binding.
+For details about PySide6's license, please refer to: https://doc.qt.io/qt-6/lgpl.html
